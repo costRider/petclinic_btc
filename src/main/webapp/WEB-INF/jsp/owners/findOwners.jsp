@@ -22,6 +22,18 @@
             </div>
         </div>
         <div class="form-group">
+            <div class="control-group" id="pageSize">
+                <label class="col-sm-2 control-label">Results per page</label>
+                <div class="col-sm-10">
+                    <select class="form-control" name="size">
+                        <c:forEach var="option" items="${pageSizeOptions}">
+                            <option value="${option}" <c:if test="${option == pageSize}">selected</c:if>>${option}</option>
+                        </c:forEach>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="form-group">
             <div class="col-sm-offset-2 col-sm-10">
                 <button type="submit" class="btn btn-default">Find Owner</button>
             </div>
