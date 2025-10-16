@@ -15,11 +15,15 @@
  */
 package org.springframework.samples.petclinic.service;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.samples.petclinic.model.Owner;
+import org.springframework.samples.petclinic.model.OwnerSearchResults;
 import org.springframework.samples.petclinic.model.Pet;
 import org.springframework.samples.petclinic.model.PetType;
 import org.springframework.samples.petclinic.model.Vet;
@@ -72,6 +76,33 @@ public class ClinicServiceImpl implements ClinicService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public OwnerSearchResults findOwnerByLastName(String lastName, int page, int pageSize) {
+        String searchTerm = lastName == null ? "" : lastName;
+        Collection<Owner> owners = ownerRepository.findByLastName(searchTerm);
+        List<Owner> ownerList = owners instanceof List ? (List<Owner>) owners : new ArrayList<>(owners);
+
+        int requestedPageSize = Math.max(pageSize, 1);
+        int totalCount = ownerList.size();
+
+        if (totalCount == 0) {
+            return new OwnerSearchResults(Collections.emptyList(), 0, 1, requestedPageSize, searchTerm);
+        }
+
+        int totalPages = (int) Math.ceil(totalCount / (double) requestedPageSize);
+        int sanitizedPage = Math.max(page, 1);
+        if (sanitizedPage > totalPages) {
+            sanitizedPage = totalPages;
+        }
+
+        int fromIndex = (sanitizedPage - 1) * requestedPageSize;
+        int toIndex = Math.min(fromIndex + requestedPageSize, totalCount);
+        List<Owner> pageContent = ownerList.subList(fromIndex, toIndex);
+
+        return new OwnerSearchResults(pageContent, totalCount, sanitizedPage, requestedPageSize, searchTerm);
+    }
+
+    @Override
     @Transactional
     public void saveOwner(Owner owner) {
         ownerRepository.save(owner);
@@ -104,10 +135,10 @@ public class ClinicServiceImpl implements ClinicService {
         return vetRepository.findAll();
     }
 
-	@Override
-	public Collection<Visit> findVisitsByPetId(int petId) {
-		return visitRepository.findByPetId(petId);
-	}
+    @Override
+    public Collection<Visit> findVisitsByPetId(int petId) {
+        return visitRepository.findByPetId(petId);
+    }
 
 
 }

@@ -1,15 +1,20 @@
 package org.springframework.samples.petclinic.web;
 
+import java.util.Collections;
+
 import org.assertj.core.util.Lists;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.samples.petclinic.model.Owner;
+import org.springframework.samples.petclinic.model.OwnerSearchResults;
 import org.springframework.samples.petclinic.service.ClinicService;
 import org.springframework.test.context.junit.jupiter.web.SpringJUnitWebConfig;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.BDDMockito.given;
@@ -50,6 +55,8 @@ class OwnerControllerTests {
         george.setCity("Madison");
         george.setTelephone("6085551023");
         given(this.clinicService.findOwnerById(TEST_OWNER_ID)).willReturn(george);
+        given(this.clinicService.findOwnerByLastName(anyString(), anyInt(), anyInt()))
+            .willReturn(new OwnerSearchResults(Collections.emptyList(), 0, 1, 10, ""));
 
     }
 
@@ -92,21 +99,31 @@ class OwnerControllerTests {
         mockMvc.perform(get("/owners/find"))
             .andExpect(status().isOk())
             .andExpect(model().attributeExists("owner"))
+            .andExpect(model().attributeExists("pageSizeOptions"))
+            .andExpect(model().attribute("pageSize", is(10)))
             .andExpect(view().name("owners/findOwners"));
     }
 
     @Test
     void testProcessFindFormSuccess() throws Exception {
-        given(this.clinicService.findOwnerByLastName("")).willReturn(Lists.newArrayList(george, new Owner()));
+        given(this.clinicService.findOwnerByLastName("", 1, 10))
+            .willReturn(new OwnerSearchResults(Lists.newArrayList(george, new Owner()), 2, 1, 10, ""));
 
         mockMvc.perform(get("/owners"))
             .andExpect(status().isOk())
+            .andExpect(model().attribute("totalCount", is(2)))
+            .andExpect(model().attribute("page", is(1)))
+            .andExpect(model().attribute("pageSize", is(10)))
+            .andExpect(model().attribute("totalPages", is(1)))
+            .andExpect(model().attributeExists("pageSizeOptions"))
+            .andExpect(model().attribute("searchLastName", is("")))
             .andExpect(view().name("owners/ownersList"));
     }
 
     @Test
     void testProcessFindFormByLastName() throws Exception {
-        given(this.clinicService.findOwnerByLastName(george.getLastName())).willReturn(Lists.newArrayList(george));
+        given(this.clinicService.findOwnerByLastName(george.getLastName(), 1, 10))
+            .willReturn(new OwnerSearchResults(Lists.newArrayList(george), 1, 1, 10, george.getLastName()));
 
         mockMvc.perform(get("/owners")
             .param("lastName", "Franklin")
@@ -117,12 +134,17 @@ class OwnerControllerTests {
 
     @Test
     void testProcessFindFormNoOwnersFound() throws Exception {
+        given(this.clinicService.findOwnerByLastName("Unknown Surname", 1, 10))
+            .willReturn(new OwnerSearchResults(Collections.emptyList(), 0, 1, 10, "Unknown Surname"));
+
         mockMvc.perform(get("/owners")
             .param("lastName", "Unknown Surname")
         )
             .andExpect(status().isOk())
             .andExpect(model().attributeHasFieldErrors("owner", "lastName"))
             .andExpect(model().attributeHasFieldErrorCode("owner", "lastName", "notFound"))
+            .andExpect(model().attributeExists("pageSizeOptions"))
+            .andExpect(model().attribute("pageSize", is(10)))
             .andExpect(view().name("owners/findOwners"));
     }
 
