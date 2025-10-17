@@ -77,29 +77,54 @@ public class ClinicServiceImpl implements ClinicService {
 
     @Override
     @Transactional(readOnly = true)
-    public OwnerSearchResults findOwnerByLastName(String lastName, int page, int pageSize) {
+    public OwnerSearchResults findOwnerByLastName(String lastName, Integer cursor, int pageSize, boolean forward) {
         String searchTerm = lastName == null ? "" : lastName;
-        Collection<Owner> owners = ownerRepository.findByLastName(searchTerm);
-        List<Owner> ownerList = owners instanceof List ? (List<Owner>) owners : new ArrayList<>(owners);
-
         int requestedPageSize = Math.max(pageSize, 1);
-        int totalCount = ownerList.size();
 
-        if (totalCount == 0) {
-            return new OwnerSearchResults(Collections.emptyList(), 0, 1, requestedPageSize, searchTerm);
+        List<Owner> ownersSlice = ownerRepository.findByLastNameWithCursor(searchTerm, cursor, requestedPageSize + 1, forward);
+        boolean overflow = ownersSlice.size() > requestedPageSize;
+        List<Owner> pageContent = overflow ? new ArrayList<>(ownersSlice.subList(0, requestedPageSize)) : new ArrayList<>(ownersSlice);
+
+        if (!forward) {
+            Collections.reverse(pageContent);
         }
 
-        int totalPages = (int) Math.ceil(totalCount / (double) requestedPageSize);
-        int sanitizedPage = Math.max(page, 1);
-        if (sanitizedPage > totalPages) {
-            sanitizedPage = totalPages;
+        int totalCount = ownerRepository.countByLastName(searchTerm);
+        Integer nextCursor = null;
+        Integer previousCursor = null;
+        boolean hasNext = false;
+        boolean hasPrevious = false;
+
+        if (!pageContent.isEmpty()) {
+            int firstId = pageContent.get(0).getId();
+            int lastId = pageContent.get(pageContent.size() - 1).getId();
+
+            if (forward) {
+                hasNext = overflow;
+                if (hasNext) {
+                    nextCursor = lastId;
+                }
+                hasPrevious = ownerRepository.existsByLastNameBefore(searchTerm, firstId);
+                if (hasPrevious) {
+                    previousCursor = firstId;
+                }
+                if (!hasNext && ownerRepository.existsByLastNameAfter(searchTerm, lastId)) {
+                    hasNext = true;
+                    nextCursor = lastId;
+                }
+            } else {
+                hasPrevious = overflow || ownerRepository.existsByLastNameBefore(searchTerm, firstId);
+                if (hasPrevious) {
+                    previousCursor = firstId;
+                }
+                hasNext = ownerRepository.existsByLastNameAfter(searchTerm, lastId);
+                if (hasNext) {
+                    nextCursor = lastId;
+                }
+            }
         }
 
-        int fromIndex = (sanitizedPage - 1) * requestedPageSize;
-        int toIndex = Math.min(fromIndex + requestedPageSize, totalCount);
-        List<Owner> pageContent = ownerList.subList(fromIndex, toIndex);
-
-        return new OwnerSearchResults(pageContent, totalCount, sanitizedPage, requestedPageSize, searchTerm);
+        return new OwnerSearchResults(pageContent, totalCount, requestedPageSize, searchTerm, nextCursor, previousCursor, hasNext, hasPrevious);
     }
 
     @Override

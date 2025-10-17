@@ -27,16 +27,23 @@ public class OwnerSearchResults {
 
     private final List<Owner> owners;
     private final int totalCount;
-    private final int page;
     private final int pageSize;
     private final String lastName;
+    private final Integer nextCursor;
+    private final Integer previousCursor;
+    private final boolean hasNext;
+    private final boolean hasPrevious;
 
-    public OwnerSearchResults(Collection<Owner> owners, int totalCount, int page, int pageSize, String lastName) {
+    public OwnerSearchResults(Collection<Owner> owners, int totalCount, int pageSize, String lastName,
+        Integer nextCursor, Integer previousCursor, boolean hasNext, boolean hasPrevious) {
         this.owners = Collections.unmodifiableList(new ArrayList<>(owners));
         this.totalCount = Math.max(totalCount, 0);
-        this.page = Math.max(page, 1);
         this.pageSize = Math.max(pageSize, 1);
         this.lastName = lastName == null ? "" : lastName;
+        this.nextCursor = nextCursor;
+        this.previousCursor = previousCursor;
+        this.hasNext = hasNext;
+        this.hasPrevious = hasPrevious;
     }
 
     public List<Owner> getOwners() {
@@ -47,10 +54,6 @@ public class OwnerSearchResults {
         return totalCount;
     }
 
-    public int getPage() {
-        return page;
-    }
-
     public int getPageSize() {
         return pageSize;
     }
@@ -59,10 +62,19 @@ public class OwnerSearchResults {
         return lastName;
     }
 
-    public int getTotalPages() {
-        if (totalCount == 0) {
-            return 0;
-        }
-        return (int) Math.ceil(totalCount / (double) pageSize);
+    public Integer getNextCursor() {
+        return nextCursor;
+    }
+
+    public Integer getPreviousCursor() {
+        return previousCursor;
+    }
+
+    public boolean hasNext() {
+        return hasNext;
+    }
+
+    public boolean hasPrevious() {
+        return hasPrevious;
     }
 }

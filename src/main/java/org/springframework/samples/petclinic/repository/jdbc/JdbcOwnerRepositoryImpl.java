@@ -85,6 +85,68 @@ public class JdbcOwnerRepositoryImpl implements OwnerRepository {
         return owners;
     }
 
+    @Override
+    public List<Owner> findByLastNameWithCursor(String lastName, Integer cursor, int limit, boolean forward) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("lastName", lastName + "%");
+
+        StringBuilder sql = new StringBuilder(
+            "SELECT id, first_name, last_name, address, city, telephone FROM owners WHERE last_name like :lastName"
+        );
+        if (cursor != null) {
+            sql.append(forward ? " AND id > :cursor" : " AND id < :cursor");
+            params.put("cursor", cursor);
+        }
+        sql.append(" ORDER BY id ").append(forward ? "ASC" : "DESC");
+        sql.append(" LIMIT ").append(limit);
+
+        List<Owner> owners = this.namedParameterJdbcTemplate.query(
+            sql.toString(),
+            params,
+            BeanPropertyRowMapper.newInstance(Owner.class)
+        );
+        loadOwnersPetsAndVisits(owners);
+        return owners;
+    }
+
+    @Override
+    public boolean existsByLastNameBefore(String lastName, int cursor) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("lastName", lastName + "%");
+        params.put("cursor", cursor);
+        Integer count = this.namedParameterJdbcTemplate.queryForObject(
+            "SELECT COUNT(id) FROM owners WHERE last_name like :lastName AND id < :cursor",
+            params,
+            Integer.class
+        );
+        return count != null && count > 0;
+    }
+
+    @Override
+    public boolean existsByLastNameAfter(String lastName, int cursor) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("lastName", lastName + "%");
+        params.put("cursor", cursor);
+        Integer count = this.namedParameterJdbcTemplate.queryForObject(
+            "SELECT COUNT(id) FROM owners WHERE last_name like :lastName AND id > :cursor",
+            params,
+            Integer.class
+        );
+        return count != null && count > 0;
+    }
+
+    @Override
+    public int countByLastName(String lastName) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("lastName", lastName + "%");
+        Integer count = this.namedParameterJdbcTemplate.queryForObject(
+            "SELECT COUNT(id) FROM owners WHERE last_name like :lastName",
+            params,
+            Integer.class
+        );
+        return count == null ? 0 : count;
+    }
+
     /**
      * Loads the {@link Owner} with the supplied <code>id</code>; also loads the {@link Pet Pets} and {@link Visit Visits}
      * for the corresponding owner, if not already loaded.
