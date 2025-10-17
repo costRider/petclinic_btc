@@ -16,6 +16,7 @@
 package org.springframework.samples.petclinic.repository;
 
 import java.util.Collection;
+import java.util.List;
 
 import org.springframework.samples.petclinic.model.BaseEntity;
 import org.springframework.samples.petclinic.model.Owner;
@@ -40,6 +41,43 @@ public interface OwnerRepository {
      * found)
      */
     Collection<Owner> findByLastName(String lastName);
+
+    /**
+     * Retrieve a slice of {@link Owner} records using cursor based pagination semantics.
+     *
+     * @param lastName the value to search for (prefix match)
+     * @param cursor the owner id to start after/before; {@code null} to start from the beginning/end depending on direction
+     * @param limit the maximum number of records to fetch
+     * @param forward {@code true} to fetch records after the cursor, {@code false} to fetch records before the cursor
+     * @return an ordered {@link List} of owners that satisfy the search criteria
+     */
+    List<Owner> findByLastNameWithCursor(String lastName, Integer cursor, int limit, boolean forward);
+
+    /**
+     * Determine if there exists an owner whose id is smaller than the supplied cursor for the given last name.
+     *
+     * @param lastName the value to search for (prefix match)
+     * @param cursor the owner id boundary
+     * @return {@code true} if at least one owner exists before the cursor
+     */
+    boolean existsByLastNameBefore(String lastName, int cursor);
+
+    /**
+     * Determine if there exists an owner whose id is greater than the supplied cursor for the given last name.
+     *
+     * @param lastName the value to search for (prefix match)
+     * @param cursor the owner id boundary
+     * @return {@code true} if at least one owner exists after the cursor
+     */
+    boolean existsByLastNameAfter(String lastName, int cursor);
+
+    /**
+     * Count owners that match the provided last name.
+     *
+     * @param lastName the value to search for (prefix match)
+     * @return the total number of owners that match the criteria
+     */
+    int countByLastName(String lastName);
 
     /**
      * Retrieve an <code>Owner</code> from the data store by id.

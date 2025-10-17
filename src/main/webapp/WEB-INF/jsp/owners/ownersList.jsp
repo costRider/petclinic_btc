@@ -16,7 +16,7 @@
             <spring:url value="/owners" var="sizeFormUrl"/>
             <form class="form-inline" method="get" action="${fn:escapeXml(sizeFormUrl)}">
                 <input type="hidden" name="lastName" value="${fn:escapeXml(searchLastName)}"/>
-                <input type="hidden" name="page" value="1"/>
+                <input type="hidden" name="direction" value="next"/>
                 <label class="control-label" for="pageSizeSelect">Results per page</label>
                 <select class="form-control" id="pageSizeSelect" name="size" onchange="this.form.submit()">
                     <c:forEach var="option" items="${pageSizeOptions}">
@@ -65,39 +65,32 @@
         </tbody>
     </table>
 
-    <c:if test="${totalPages > 1}">
+    <c:if test="${hasPrevious or hasNext}">
         <nav aria-label="Owner search pages">
             <ul class="pagination justify-content-center">
-                <c:set var="isFirstPage" value="${page == 1}"/>
-                <li class="page-item${isFirstPage ? ' disabled' : ''}">
+                <li class="page-item${hasPrevious ? '' : ' disabled'}">
                     <spring:url value="/owners" var="prevUrl">
                         <spring:param name="lastName" value="${searchLastName}"/>
                         <spring:param name="size" value="${pageSize}"/>
-                        <spring:param name="page" value="${page - 1}"/>
+                        <spring:param name="direction" value="previous"/>
+                        <c:if test="${hasPrevious}">
+                            <spring:param name="cursor" value="${previousCursor}"/>
+                        </c:if>
                     </spring:url>
-                    <a class="page-link" href="${fn:escapeXml(prevUrl)}" aria-label="Previous" <c:if test='${isFirstPage}'>tabindex="-1" aria-disabled="true"</c:if>>
+                    <a class="page-link" href="${fn:escapeXml(prevUrl)}" aria-label="Previous" <c:if test='${!hasPrevious}'>tabindex="-1" aria-disabled="true"</c:if>>
                         <span aria-hidden="true">&laquo;</span>
                     </a>
                 </li>
-                <c:forEach begin="1" end="${totalPages}" var="pageNumber">
-                    <spring:url value="/owners" var="pageUrl">
-                        <spring:param name="lastName" value="${searchLastName}"/>
-                        <spring:param name="size" value="${pageSize}"/>
-                        <spring:param name="page" value="${pageNumber}"/>
-                    </spring:url>
-                    <c:set var="isCurrent" value="${pageNumber == page}"/>
-                    <li class="page-item${isCurrent ? ' active' : ''}">
-                        <a class="page-link" href="${fn:escapeXml(pageUrl)}" <c:if test='${isCurrent}'>aria-current="page"</c:if>>${pageNumber}</a>
-                    </li>
-                </c:forEach>
-                <c:set var="isLastPage" value="${page == totalPages}"/>
-                <li class="page-item${isLastPage ? ' disabled' : ''}">
+                <li class="page-item${hasNext ? '' : ' disabled'}">
                     <spring:url value="/owners" var="nextUrl">
                         <spring:param name="lastName" value="${searchLastName}"/>
                         <spring:param name="size" value="${pageSize}"/>
-                        <spring:param name="page" value="${page + 1}"/>
+                        <spring:param name="direction" value="next"/>
+                        <c:if test="${hasNext}">
+                            <spring:param name="cursor" value="${nextCursor}"/>
+                        </c:if>
                     </spring:url>
-                    <a class="page-link" href="${fn:escapeXml(nextUrl)}" aria-label="Next" <c:if test='${isLastPage}'>tabindex="-1" aria-disabled="true"</c:if>>
+                    <a class="page-link" href="${fn:escapeXml(nextUrl)}" aria-label="Next" <c:if test='${!hasNext}'>tabindex="-1" aria-disabled="true"</c:if>>
                         <span aria-hidden="true">&raquo;</span>
                     </a>
                 </li>
