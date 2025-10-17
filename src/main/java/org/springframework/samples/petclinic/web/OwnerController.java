@@ -83,8 +83,7 @@ public class OwnerController {
 
     @GetMapping(value = "/owners")
     public String processFindForm(Owner owner, BindingResult result, Map<String, Object> model,
-        @RequestParam(value = "cursor", required = false) Integer cursor,
-        @RequestParam(value = "direction", defaultValue = "next") String direction,
+        @RequestParam(value = "page", defaultValue = "1") int page,
         @RequestParam(value = "size", defaultValue = "10") int size) {
 
         // allow parameterless GET request for /owners to return all records
@@ -95,8 +94,7 @@ public class OwnerController {
         int pageSize = normalizePageSize(size);
         addPaginationOptions(model, pageSize);
 
-        boolean forward = direction == null || !"previous".equalsIgnoreCase(direction);
-        OwnerSearchResults results = this.clinicService.findOwnerByLastName(owner.getLastName(), cursor, pageSize, forward);
+        OwnerSearchResults results = this.clinicService.findOwnerByLastName(owner.getLastName(), page, pageSize);
 
         if (results.getTotalCount() == 0) {
             // no owners found
@@ -111,12 +109,10 @@ public class OwnerController {
             model.put("owner", owner);
             model.put("selections", results.getOwners());
             model.put("totalCount", results.getTotalCount());
+            model.put("page", results.getPage());
             model.put("pageSize", results.getPageSize());
+            model.put("totalPages", results.getTotalPages());
             model.put("searchLastName", results.getLastName());
-            model.put("hasNext", results.hasNext());
-            model.put("hasPrevious", results.hasPrevious());
-            model.put("nextCursor", results.getNextCursor());
-            model.put("previousCursor", results.getPreviousCursor());
             return "owners/ownersList";
         }
     }

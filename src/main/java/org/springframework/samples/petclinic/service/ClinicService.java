@@ -48,7 +48,7 @@ public interface ClinicService {
 
     Collection<Owner> findOwnerByLastName(String lastName);
 
-    OwnerSearchResults findOwnerByLastName(String lastName, Integer cursor, int pageSize, boolean forward);
+    OwnerSearchResults findOwnerByLastName(String lastName, int page, int pageSize);
 
     Collection<Visit> findVisitsByPetId(int petId);
 
