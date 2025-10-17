@@ -21,6 +21,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import javax.sql.DataSource;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -45,10 +47,13 @@ import org.springframework.stereotype.Repository;
 public class JdbcVetRepositoryImpl implements VetRepository {
 
     private JdbcTemplate jdbcTemplate;
+    private final DataSource dataSource;
 
     @Autowired
     public JdbcVetRepositoryImpl(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
+        this.dataSource = jdbcTemplate.getDataSource();
+        ensureConnection();
     }
 
     /**
@@ -56,6 +61,7 @@ public class JdbcVetRepositoryImpl implements VetRepository {
      */
     @Override
     public Collection<Vet> findAll() {
+        ensureConnection();
         List<Vet> vets = new ArrayList<>();
         // Retrieve the list of all vets.
         vets.addAll(this.jdbcTemplate.query(
@@ -63,12 +69,14 @@ public class JdbcVetRepositoryImpl implements VetRepository {
             BeanPropertyRowMapper.newInstance(Vet.class)));
 
         // Retrieve the list of all possible specialties.
+        ensureConnection();
         final List<Specialty> specialties = this.jdbcTemplate.query(
             "SELECT id, name FROM specialties",
             BeanPropertyRowMapper.newInstance(Specialty.class));
 
         // Build each vet's list of specialties.
         for (Vet vet : vets) {
+            ensureConnection();
             final List<Integer> vetSpecialtiesIds = this.jdbcTemplate.query(
                 "SELECT specialty_id FROM vet_specialties WHERE vet_id=?",
                 new BeanPropertyRowMapper<Integer>() {
@@ -84,5 +92,11 @@ public class JdbcVetRepositoryImpl implements VetRepository {
             }
         }
         return vets;
+    }
+
+    private void ensureConnection() {
+        if (this.dataSource != null) {
+            JdbcConnectionValidator.ensureConnection(this.dataSource);
+        }
     }
 }

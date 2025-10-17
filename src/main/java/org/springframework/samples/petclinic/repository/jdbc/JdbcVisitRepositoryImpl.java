@@ -15,6 +15,12 @@
  */
 package org.springframework.samples.petclinic.repository.jdbc;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import javax.sql.DataSource;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -22,12 +28,6 @@ import org.springframework.jdbc.core.simple.SimpleJdbcInsert;
 import org.springframework.samples.petclinic.model.Visit;
 import org.springframework.samples.petclinic.repository.VisitRepository;
 import org.springframework.stereotype.Repository;
-
-import javax.sql.DataSource;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 /**
  * A simple JDBC-based implementation of the {@link VisitRepository} interface.
@@ -43,22 +43,22 @@ import java.util.Map;
 @Repository
 public class JdbcVisitRepositoryImpl implements VisitRepository {
 
+    private final DataSource dataSource;
     private NamedParameterJdbcTemplate jdbcTemplate;
 
     private SimpleJdbcInsert insertVisit;
 
     @Autowired
     public JdbcVisitRepositoryImpl(DataSource dataSource) {
-        this.jdbcTemplate = new NamedParameterJdbcTemplate(dataSource);
-
-        this.insertVisit = new SimpleJdbcInsert(dataSource)
-            .withTableName("visits")
-            .usingGeneratedKeyColumns("id");
+        this.dataSource = dataSource;
+        refreshJdbcComponents();
+        JdbcConnectionValidator.ensureConnection(this.dataSource, this::refreshJdbcComponents);
     }
 
 
     @Override
     public void save(Visit visit) {
+        JdbcConnectionValidator.ensureConnection(this.dataSource, this::refreshJdbcComponents);
         if (visit.isNew()) {
             Number newKey = this.insertVisit.executeAndReturnKey(
                 createVisitParameterSource(visit));
@@ -82,6 +82,7 @@ public class JdbcVisitRepositoryImpl implements VisitRepository {
 
     @Override
     public List<Visit> findByPetId(Integer petId) {
+        JdbcConnectionValidator.ensureConnection(this.dataSource, this::refreshJdbcComponents);
         Map<String, Object> params = new HashMap<>();
         params.put("id", petId);
         JdbcPet pet = this.jdbcTemplate.queryForObject(
@@ -98,6 +99,14 @@ public class JdbcVisitRepositoryImpl implements VisitRepository {
         }
 
         return visits;
+    }
+
+    private synchronized void refreshJdbcComponents() {
+        this.jdbcTemplate = new NamedParameterJdbcTemplate(this.dataSource);
+
+        this.insertVisit = new SimpleJdbcInsert(this.dataSource)
+            .withTableName("visits")
+            .usingGeneratedKeyColumns("id");
     }
 
 }

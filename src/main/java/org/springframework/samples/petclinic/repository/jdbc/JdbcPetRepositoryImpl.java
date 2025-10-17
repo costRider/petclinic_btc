@@ -47,6 +47,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class JdbcPetRepositoryImpl implements PetRepository {
 
+    private final DataSource dataSource;
     private NamedParameterJdbcTemplate namedParameterJdbcTemplate;
 
     private SimpleJdbcInsert insertPet;
@@ -55,17 +56,15 @@ public class JdbcPetRepositoryImpl implements PetRepository {
 
     @Autowired
     public JdbcPetRepositoryImpl(DataSource dataSource, OwnerRepository ownerRepository) {
-        this.namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(dataSource);
-
-        this.insertPet = new SimpleJdbcInsert(dataSource)
-            .withTableName("pets")
-            .usingGeneratedKeyColumns("id");
-
+        this.dataSource = dataSource;
+        refreshJdbcComponents();
+        JdbcConnectionValidator.ensureConnection(this.dataSource, this::refreshJdbcComponents);
         this.ownerRepository = ownerRepository;
     }
 
     @Override
     public List<PetType> findPetTypes() {
+        JdbcConnectionValidator.ensureConnection(this.dataSource, this::refreshJdbcComponents);
         Map<String, Object> params = new HashMap<>();
         return this.namedParameterJdbcTemplate.query(
             "SELECT id, name FROM types ORDER BY name",
@@ -75,6 +74,7 @@ public class JdbcPetRepositoryImpl implements PetRepository {
 
     @Override
     public Pet findById(int id) {
+        JdbcConnectionValidator.ensureConnection(this.dataSource, this::refreshJdbcComponents);
         Integer ownerId;
         try {
             Map<String, Object> params = new HashMap<>();
@@ -89,6 +89,7 @@ public class JdbcPetRepositoryImpl implements PetRepository {
 
     @Override
     public void save(Pet pet) {
+        JdbcConnectionValidator.ensureConnection(this.dataSource, this::refreshJdbcComponents);
         if (pet.isNew()) {
             Number newKey = this.insertPet.executeAndReturnKey(
                 createPetParameterSource(pet));
@@ -111,6 +112,14 @@ public class JdbcPetRepositoryImpl implements PetRepository {
             .addValue("birth_date", pet.getBirthDate())
             .addValue("type_id", pet.getType().getId())
             .addValue("owner_id", pet.getOwner().getId());
+    }
+
+    private synchronized void refreshJdbcComponents() {
+        this.namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(this.dataSource);
+
+        this.insertPet = new SimpleJdbcInsert(this.dataSource)
+            .withTableName("pets")
+            .usingGeneratedKeyColumns("id");
     }
 
 }

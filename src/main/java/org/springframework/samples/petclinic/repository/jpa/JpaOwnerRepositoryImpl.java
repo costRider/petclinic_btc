@@ -16,7 +16,6 @@
 package org.springframework.samples.petclinic.repository.jpa;
 
 import java.util.Collection;
-import java.util.List;
 
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
@@ -59,26 +58,6 @@ public class JpaOwnerRepositoryImpl implements OwnerRepository {
         return query.getResultList();
     }
 
-    @SuppressWarnings("unchecked")
-    @Override
-    public List<Owner> findByLastNameWithCursor(String lastName, Integer cursor, int limit, boolean forward) {
-        StringBuilder jpql = new StringBuilder(
-            "SELECT DISTINCT owner FROM Owner owner left join fetch owner.pets WHERE owner.lastName LIKE :lastName"
-        );
-        if (cursor != null) {
-            jpql.append(forward ? " AND owner.id > :cursor" : " AND owner.id < :cursor");
-        }
-        jpql.append(" ORDER BY owner.id ").append(forward ? "ASC" : "DESC");
-
-        Query query = this.em.createQuery(jpql.toString());
-        query.setParameter("lastName", lastName + "%");
-        if (cursor != null) {
-            query.setParameter("cursor", cursor);
-        }
-        query.setMaxResults(limit);
-        return query.getResultList();
-    }
-
     @Override
     public Owner findById(int id) {
         // using 'join fetch' because a single query should load both owners and pets
@@ -97,38 +76,6 @@ public class JpaOwnerRepositoryImpl implements OwnerRepository {
             this.em.merge(owner);
         }
 
-    }
-
-    @Override
-    public boolean existsByLastNameBefore(String lastName, int cursor) {
-        Long count = this.em.createQuery(
-                "SELECT COUNT(owner.id) FROM Owner owner WHERE owner.lastName LIKE :lastName AND owner.id < :cursor",
-                Long.class)
-            .setParameter("lastName", lastName + "%")
-            .setParameter("cursor", cursor)
-            .getSingleResult();
-        return count != null && count > 0;
-    }
-
-    @Override
-    public boolean existsByLastNameAfter(String lastName, int cursor) {
-        Long count = this.em.createQuery(
-                "SELECT COUNT(owner.id) FROM Owner owner WHERE owner.lastName LIKE :lastName AND owner.id > :cursor",
-                Long.class)
-            .setParameter("lastName", lastName + "%")
-            .setParameter("cursor", cursor)
-            .getSingleResult();
-        return count != null && count > 0;
-    }
-
-    @Override
-    public int countByLastName(String lastName) {
-        Long count = this.em.createQuery(
-                "SELECT COUNT(owner.id) FROM Owner owner WHERE owner.lastName LIKE :lastName",
-                Long.class)
-            .setParameter("lastName", lastName + "%")
-            .getSingleResult();
-        return count == null ? 0 : count.intValue();
     }
 
 }

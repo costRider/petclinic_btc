@@ -51,19 +51,16 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class JdbcOwnerRepositoryImpl implements OwnerRepository {
 
+    private final DataSource dataSource;
     private NamedParameterJdbcTemplate namedParameterJdbcTemplate;
 
     private SimpleJdbcInsert insertOwner;
 
     @Autowired
     public JdbcOwnerRepositoryImpl(DataSource dataSource) {
-
-        this.insertOwner = new SimpleJdbcInsert(dataSource)
-            .withTableName("owners")
-            .usingGeneratedKeyColumns("id");
-
-        this.namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(dataSource);
-
+        this.dataSource = dataSource;
+        refreshJdbcComponents();
+        JdbcConnectionValidator.ensureConnection(this.dataSource, this::refreshJdbcComponents);
     }
 
 
@@ -74,6 +71,7 @@ public class JdbcOwnerRepositoryImpl implements OwnerRepository {
      */
     @Override
     public Collection<Owner> findByLastName(String lastName) {
+        JdbcConnectionValidator.ensureConnection(this.dataSource, this::refreshJdbcComponents);
         Map<String, Object> params = new HashMap<>();
         params.put("lastName", lastName + "%");
         List<Owner> owners = this.namedParameterJdbcTemplate.query(
@@ -85,68 +83,6 @@ public class JdbcOwnerRepositoryImpl implements OwnerRepository {
         return owners;
     }
 
-    @Override
-    public List<Owner> findByLastNameWithCursor(String lastName, Integer cursor, int limit, boolean forward) {
-        Map<String, Object> params = new HashMap<>();
-        params.put("lastName", lastName + "%");
-
-        StringBuilder sql = new StringBuilder(
-            "SELECT id, first_name, last_name, address, city, telephone FROM owners WHERE last_name like :lastName"
-        );
-        if (cursor != null) {
-            sql.append(forward ? " AND id > :cursor" : " AND id < :cursor");
-            params.put("cursor", cursor);
-        }
-        sql.append(" ORDER BY id ").append(forward ? "ASC" : "DESC");
-        sql.append(" LIMIT ").append(limit);
-
-        List<Owner> owners = this.namedParameterJdbcTemplate.query(
-            sql.toString(),
-            params,
-            BeanPropertyRowMapper.newInstance(Owner.class)
-        );
-        loadOwnersPetsAndVisits(owners);
-        return owners;
-    }
-
-    @Override
-    public boolean existsByLastNameBefore(String lastName, int cursor) {
-        Map<String, Object> params = new HashMap<>();
-        params.put("lastName", lastName + "%");
-        params.put("cursor", cursor);
-        Integer count = this.namedParameterJdbcTemplate.queryForObject(
-            "SELECT COUNT(id) FROM owners WHERE last_name like :lastName AND id < :cursor",
-            params,
-            Integer.class
-        );
-        return count != null && count > 0;
-    }
-
-    @Override
-    public boolean existsByLastNameAfter(String lastName, int cursor) {
-        Map<String, Object> params = new HashMap<>();
-        params.put("lastName", lastName + "%");
-        params.put("cursor", cursor);
-        Integer count = this.namedParameterJdbcTemplate.queryForObject(
-            "SELECT COUNT(id) FROM owners WHERE last_name like :lastName AND id > :cursor",
-            params,
-            Integer.class
-        );
-        return count != null && count > 0;
-    }
-
-    @Override
-    public int countByLastName(String lastName) {
-        Map<String, Object> params = new HashMap<>();
-        params.put("lastName", lastName + "%");
-        Integer count = this.namedParameterJdbcTemplate.queryForObject(
-            "SELECT COUNT(id) FROM owners WHERE last_name like :lastName",
-            params,
-            Integer.class
-        );
-        return count == null ? 0 : count;
-    }
-
     /**
      * Loads the {@link Owner} with the supplied <code>id</code>; also loads the {@link Pet Pets} and {@link Visit Visits}
      * for the corresponding owner, if not already loaded.
@@ -155,6 +91,7 @@ public class JdbcOwnerRepositoryImpl implements OwnerRepository {
     public Owner findById(int id) {
         Owner owner;
         try {
+            JdbcConnectionValidator.ensureConnection(this.dataSource, this::refreshJdbcComponents);
             Map<String, Object> params = new HashMap<>();
             params.put("id", id);
             owner = this.namedParameterJdbcTemplate.queryForObject(
@@ -170,6 +107,7 @@ public class JdbcOwnerRepositoryImpl implements OwnerRepository {
     }
 
     public void loadPetsAndVisits(final Owner owner) {
+        JdbcConnectionValidator.ensureConnection(this.dataSource, this::refreshJdbcComponents);
         Map<String, Object> params = new HashMap<>();
         params.put("id", owner.getId());
         final List<JdbcPet> pets = this.namedParameterJdbcTemplate.query(
@@ -186,6 +124,7 @@ public class JdbcOwnerRepositoryImpl implements OwnerRepository {
 
     @Override
     public void save(Owner owner) {
+        JdbcConnectionValidator.ensureConnection(this.dataSource, this::refreshJdbcComponents);
         BeanPropertySqlParameterSource parameterSource = new BeanPropertySqlParameterSource(owner);
         if (owner.isNew()) {
             Number newKey = this.insertOwner.executeAndReturnKey(parameterSource);
@@ -199,6 +138,7 @@ public class JdbcOwnerRepositoryImpl implements OwnerRepository {
     }
 
     public Collection<PetType> getPetTypes() {
+        JdbcConnectionValidator.ensureConnection(this.dataSource, this::refreshJdbcComponents);
         return this.namedParameterJdbcTemplate.query(
             "SELECT id, name FROM types ORDER BY name", new HashMap<String, Object>(),
             BeanPropertyRowMapper.newInstance(PetType.class));
@@ -216,5 +156,12 @@ public class JdbcOwnerRepositoryImpl implements OwnerRepository {
         }
     }
 
+    private synchronized void refreshJdbcComponents() {
+        this.insertOwner = new SimpleJdbcInsert(this.dataSource)
+            .withTableName("owners")
+            .usingGeneratedKeyColumns("id");
+
+        this.namedParameterJdbcTemplate = new NamedParameterJdbcTemplate(this.dataSource);
+    }
 
 }
