@@ -29,7 +29,7 @@ public final class JdbcConnectionValidator {
         }
     }
 
-    private static void attemptReconnect(DataSource dataSource, Runnable onReconnect, Exception cause) {
+    private static void attemptReconnect(DataSource dataSource, Runnable onReconnect, SQLException cause) {
         if (onReconnect != null) {
             onReconnect.run();
         }
