@@ -100,21 +100,17 @@ public class OwnerController {
             // no owners found
             result.rejectValue("lastName", "notFound", "not found");
             return "owners/findOwners";
-        } else if (results.getTotalCount() == 1) {
-            // 1 owner found
-            owner = results.getOwners().iterator().next();
-            return "redirect:/owners/" + owner.getId();
-        } else {
-            // multiple owners found
-            model.put("owner", owner);
-            model.put("selections", results.getOwners());
-            model.put("totalCount", results.getTotalCount());
-            model.put("page", results.getPage());
-            model.put("pageSize", results.getPageSize());
-            model.put("totalPages", results.getTotalPages());
-            model.put("searchLastName", results.getLastName());
-            return "owners/ownersList";
         }
+
+        // owners found (one or more)
+        model.put("owner", owner);
+        model.put("selections", results.getOwners());
+        model.put("totalCount", results.getTotalCount());
+        model.put("page", results.getPage());
+        model.put("pageSize", results.getPageSize());
+        model.put("totalPages", results.getTotalPages());
+        model.put("searchLastName", results.getLastName());
+        return "owners/ownersList";
     }
 
     private void addPaginationOptions(Map<String, Object> model, int pageSize) {

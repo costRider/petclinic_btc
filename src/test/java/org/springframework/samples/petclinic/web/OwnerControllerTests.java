@@ -16,6 +16,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.hamcrest.Matchers.hasProperty;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -128,8 +129,15 @@ class OwnerControllerTests {
         mockMvc.perform(get("/owners")
             .param("lastName", "Franklin")
         )
-            .andExpect(status().is3xxRedirection())
-            .andExpect(view().name("redirect:/owners/" + TEST_OWNER_ID));
+            .andExpect(status().isOk())
+            .andExpect(model().attribute("totalCount", is(1)))
+            .andExpect(model().attribute("page", is(1)))
+            .andExpect(model().attribute("pageSize", is(10)))
+            .andExpect(model().attribute("totalPages", is(1)))
+            .andExpect(model().attributeExists("pageSizeOptions"))
+            .andExpect(model().attribute("searchLastName", is(george.getLastName())))
+            .andExpect(model().attribute("selections", hasSize(1)))
+            .andExpect(view().name("owners/ownersList"));
     }
 
     @Test
