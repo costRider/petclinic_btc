@@ -16,11 +16,18 @@
 package org.springframework.samples.petclinic.repository.springdatajpa;
 
 import java.util.Collection;
+import java.util.Collections;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.Repository;
 import org.springframework.data.repository.query.Param;
 import org.springframework.samples.petclinic.model.Owner;
+import org.springframework.samples.petclinic.model.OwnerSearchResults;
 import org.springframework.samples.petclinic.repository.OwnerRepository;
 
 /**
@@ -34,6 +41,38 @@ public interface SpringDataOwnerRepository extends OwnerRepository, Repository<O
     @Override
     @Query("SELECT DISTINCT owner FROM Owner owner left join fetch owner.pets WHERE owner.lastName LIKE :lastName%")
     public Collection<Owner> findByLastName(@Param("lastName") String lastName);
+
+    @EntityGraph(attributePaths = {"pets"})
+    @Query(value = "SELECT DISTINCT owner FROM Owner owner WHERE owner.lastName LIKE :lastName%",
+        countQuery = "SELECT COUNT(DISTINCT owner.id) FROM Owner owner WHERE owner.lastName LIKE :lastName%")
+    Page<Owner> findOwnersPageByLastName(@Param("lastName") String lastName, Pageable pageable);
+
+    @Override
+    default OwnerSearchResults findByLastName(String lastName, int page, int pageSize) {
+        int sanitizedPageSize = Math.max(pageSize, 1);
+        int sanitizedPage = Math.max(page, 1);
+
+        Sort sort = Sort.by("lastName").ascending()
+            .and(Sort.by("firstName").ascending())
+            .and(Sort.by("id").ascending());
+
+        Pageable pageable = PageRequest.of(sanitizedPage - 1, sanitizedPageSize, sort);
+        Page<Owner> ownerPage = findOwnersPageByLastName(lastName, pageable);
+
+        long totalElements = ownerPage.getTotalElements();
+        if (totalElements == 0) {
+            return new OwnerSearchResults(Collections.emptyList(), 0, 1, sanitizedPageSize, lastName);
+        }
+
+        int totalPages = ownerPage.getTotalPages();
+        if (sanitizedPage > totalPages) {
+            sanitizedPage = totalPages;
+            pageable = PageRequest.of(sanitizedPage - 1, sanitizedPageSize, sort);
+            ownerPage = findOwnersPageByLastName(lastName, pageable);
+        }
+
+        return new OwnerSearchResults(ownerPage.getContent(), (int) totalElements, sanitizedPage, sanitizedPageSize, lastName);
+    }
 
     @Override
     @Query("SELECT owner FROM Owner owner left join fetch owner.pets WHERE owner.id =:id")

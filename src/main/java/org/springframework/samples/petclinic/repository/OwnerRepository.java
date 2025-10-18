@@ -19,6 +19,7 @@ import java.util.Collection;
 
 import org.springframework.samples.petclinic.model.BaseEntity;
 import org.springframework.samples.petclinic.model.Owner;
+import org.springframework.samples.petclinic.model.OwnerSearchResults;
 
 /**
  * Repository class for <code>Owner</code> domain objects All method names are compliant with Spring Data naming
@@ -40,6 +41,8 @@ public interface OwnerRepository {
      * found)
      */
     Collection<Owner> findByLastName(String lastName);
+
+    OwnerSearchResults findByLastName(String lastName, int page, int pageSize);
 
     /**
      * Retrieve an <code>Owner</code> from the data store by id.
