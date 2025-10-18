@@ -15,10 +15,7 @@
  */
 package org.springframework.samples.petclinic.service;
 
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
@@ -79,27 +76,8 @@ public class ClinicServiceImpl implements ClinicService {
     @Transactional(readOnly = true)
     public OwnerSearchResults findOwnerByLastName(String lastName, int page, int pageSize) {
         String searchTerm = lastName == null ? "" : lastName;
-        Collection<Owner> owners = ownerRepository.findByLastName(searchTerm);
-        List<Owner> ownerList = owners instanceof List ? (List<Owner>) owners : new ArrayList<>(owners);
-
         int requestedPageSize = Math.max(pageSize, 1);
-        int totalCount = ownerList.size();
-
-        if (totalCount == 0) {
-            return new OwnerSearchResults(Collections.emptyList(), 0, 1, requestedPageSize, searchTerm);
-        }
-
-        int totalPages = (int) Math.ceil(totalCount / (double) requestedPageSize);
-        int sanitizedPage = Math.max(page, 1);
-        if (sanitizedPage > totalPages) {
-            sanitizedPage = totalPages;
-        }
-
-        int fromIndex = (sanitizedPage - 1) * requestedPageSize;
-        int toIndex = Math.min(fromIndex + requestedPageSize, totalCount);
-        List<Owner> pageContent = ownerList.subList(fromIndex, toIndex);
-
-        return new OwnerSearchResults(pageContent, totalCount, sanitizedPage, requestedPageSize, searchTerm);
+        return ownerRepository.findByLastName(searchTerm, page, requestedPageSize);
     }
 
     @Override

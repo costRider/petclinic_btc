@@ -16,6 +16,7 @@
 package org.springframework.samples.petclinic.repository.jdbc;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +31,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.simple.SimpleJdbcInsert;
 import org.springframework.orm.ObjectRetrievalFailureException;
 import org.springframework.samples.petclinic.model.Owner;
+import org.springframework.samples.petclinic.model.OwnerSearchResults;
 import org.springframework.samples.petclinic.model.Pet;
 import org.springframework.samples.petclinic.model.PetType;
 import org.springframework.samples.petclinic.model.Visit;
@@ -81,6 +83,48 @@ public class JdbcOwnerRepositoryImpl implements OwnerRepository {
         );
         loadOwnersPetsAndVisits(owners);
         return owners;
+    }
+
+    @Override
+    public OwnerSearchResults findByLastName(String lastName, int page, int pageSize) {
+        JdbcConnectionValidator.ensureConnection(this.dataSource, this::refreshJdbcComponents);
+
+        int sanitizedPageSize = Math.max(pageSize, 1);
+        int sanitizedPage = Math.max(page, 1);
+
+        Map<String, Object> countParams = new HashMap<>();
+        countParams.put("lastName", lastName + "%");
+
+        Integer totalCount = this.namedParameterJdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM owners WHERE last_name like :lastName",
+            countParams,
+            Integer.class
+        );
+
+        int total = totalCount == null ? 0 : totalCount;
+        if (total == 0) {
+            return new OwnerSearchResults(Collections.emptyList(), 0, 1, sanitizedPageSize, lastName);
+        }
+
+        int totalPages = (int) Math.ceil(total / (double) sanitizedPageSize);
+        if (sanitizedPage > totalPages) {
+            sanitizedPage = totalPages;
+        }
+
+        Map<String, Object> queryParams = new HashMap<>();
+        queryParams.put("lastName", lastName + "%");
+        queryParams.put("limit", sanitizedPageSize);
+        queryParams.put("offset", (sanitizedPage - 1) * sanitizedPageSize);
+
+        List<Owner> owners = this.namedParameterJdbcTemplate.query(
+            "SELECT id, first_name, last_name, address, city, telephone FROM owners WHERE last_name like :lastName "
+                + "ORDER BY last_name, first_name, id LIMIT :limit OFFSET :offset",
+            queryParams,
+            BeanPropertyRowMapper.newInstance(Owner.class)
+        );
+        loadOwnersPetsAndVisits(owners);
+
+        return new OwnerSearchResults(owners, total, sanitizedPage, sanitizedPageSize, lastName);
     }
 
     /**

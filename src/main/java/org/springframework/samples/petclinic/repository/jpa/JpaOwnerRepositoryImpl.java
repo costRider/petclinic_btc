@@ -16,13 +16,17 @@
 package org.springframework.samples.petclinic.repository.jpa;
 
 import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import javax.persistence.Query;
+import javax.persistence.TypedQuery;
 
 import org.springframework.orm.hibernate5.support.OpenSessionInViewFilter;
 import org.springframework.samples.petclinic.model.Owner;
+import org.springframework.samples.petclinic.model.OwnerSearchResults;
 import org.springframework.samples.petclinic.repository.OwnerRepository;
 import org.springframework.stereotype.Repository;
 
@@ -56,6 +60,40 @@ public class JpaOwnerRepositoryImpl implements OwnerRepository {
         Query query = this.em.createQuery("SELECT DISTINCT owner FROM Owner owner left join fetch owner.pets WHERE owner.lastName LIKE :lastName");
         query.setParameter("lastName", lastName + "%");
         return query.getResultList();
+    }
+
+    @Override
+    public OwnerSearchResults findByLastName(String lastName, int page, int pageSize) {
+        int sanitizedPageSize = Math.max(pageSize, 1);
+        int sanitizedPage = Math.max(page, 1);
+
+        Long totalCount = this.em.createQuery(
+                "SELECT COUNT(DISTINCT owner.id) FROM Owner owner WHERE owner.lastName LIKE :lastName",
+                Long.class)
+            .setParameter("lastName", lastName + "%")
+            .getSingleResult();
+
+        int total = totalCount == null ? 0 : totalCount.intValue();
+        if (total == 0) {
+            return new OwnerSearchResults(Collections.emptyList(), 0, 1, sanitizedPageSize, lastName);
+        }
+
+        int totalPages = (int) Math.ceil(total / (double) sanitizedPageSize);
+        if (sanitizedPage > totalPages) {
+            sanitizedPage = totalPages;
+        }
+
+        TypedQuery<Owner> query = this.em.createQuery(
+            "SELECT DISTINCT owner FROM Owner owner left join fetch owner.pets WHERE owner.lastName LIKE :lastName ORDER BY owner.lastName, owner.firstName, owner.id",
+            Owner.class
+        );
+        query.setParameter("lastName", lastName + "%");
+        query.setFirstResult((sanitizedPage - 1) * sanitizedPageSize);
+        query.setMaxResults(sanitizedPageSize);
+
+        List<Owner> owners = query.getResultList();
+
+        return new OwnerSearchResults(owners, total, sanitizedPage, sanitizedPageSize, lastName);
     }
 
     @Override
