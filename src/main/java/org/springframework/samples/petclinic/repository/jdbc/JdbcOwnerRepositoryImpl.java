@@ -118,7 +118,7 @@ public class JdbcOwnerRepositoryImpl implements OwnerRepository {
 
         List<Owner> owners = this.namedParameterJdbcTemplate.query(
             "SELECT id, first_name, last_name, address, city, telephone FROM owners WHERE last_name like :lastName "
-                + "ORDER BY last_name, first_name, id LIMIT :limit OFFSET :offset",
+                + "ORDER BY last_name, first_name, id LIMIT :offset, :limit",
             queryParams,
             BeanPropertyRowMapper.newInstance(Owner.class)
         );
